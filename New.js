@@ -28,6 +28,8 @@ const routesPath = path.join(__dirname, "Routes");
 //   }
 // });
 // Routes
+app.use("/api/teach", require("./Routes/Server6"));
+app.use("/api/teachers1", require("./Routes/Server7"));
 app.use("/api/students", require("./Routes/Server8"));
 app.use("/api/schools", require("./Routes/Server9"));
 app.use("/api/fees", require("./Routes/Server10"));
