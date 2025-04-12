@@ -97,45 +97,147 @@
 const express = require("express");
 const fs = require("fs");
 const router = express.Router();
+const path = require("path");
+const filePath = path.join(__dirname, "Teachers.csv");
 
 // GET timetable data from CSV
 router.get("/", (req, res) => {
-  fs.readFile("Teachers.csv", "utf8", (err, data) => {
+  fs.readFile(filePath, "utf8", (err, data) => {
     if (err) {
       return res.status(500).json({ error: "Error reading CSV file" });
     }
 
     const lines = data.trim().split("\n");
-    const periodsHeader = lines[0].split(",").slice(2).map(p => p.replace(/"/g, ''));
+    let classTimetables = [];
 
-    let timetableData = [];
+    for (let i = 0; i < lines.length; i++) {
+      const headerLine = lines[i]?.split(",");
+      if (headerLine[1]?.includes("Days/Periods")) {
+        const periods = headerLine.slice(2).map(p => p.replace(/"/g, ""));
 
-    for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(",");
-      const dayMatch = row[1]?.replace(/"/g, '').trim();
+        const classLine = lines[i + 1]?.split(",");
+        const ctLine = lines[i + 2]?.split(",");
 
-      for (let j = 2; j < row.length; j++) {
-        const cell = row[j].trim().replace(/"/g, '');
-        if (cell !== "-" && cell !== "") {
-          const match = cell.match(/(.*?)\((.*?)\)/);
-          if (match) {
-            timetableData.push({
-              day: dayMatch,
-              period: periodsHeader[j - 2],
-              subject: match[1].trim(),
-              name: match[2].trim(),
-            });
+        const className = classLine[0]?.replace(/"/g, "").replace("Class: ", "").trim();
+        const classTeacher = ctLine[0]?.replace(/"/g, "").replace("Classteacher: ", "").trim();
+
+        let timetable = [];
+
+        // Loop from classLine down through next 6 lines
+        for (let j = 1; j <= 6; j++) {
+          const currentLine = lines[i + j]?.split(",");
+          if (!currentLine) continue;
+
+          const day = currentLine[1]?.replace(/"/g, "").trim();
+          for (let k = 2; k < currentLine.length; k++) {
+            const cell = currentLine[k].replace(/"/g, "").trim();
+            if (cell && cell !== "-") {
+              const match = cell.match(/(.*?)\s*\((.*?)\)/);
+              if (match) {
+                timetable.push({
+                  day,
+                  period: periods[k - 2] || `P${k - 1}`, // fallback if missing
+                  subject: match[1].trim(),
+                  name: match[2].trim()
+                });
+              }
+            }
           }
         }
+
+        classTimetables.push({
+          class: className,
+          ctname: classTeacher,
+          periods,
+          timetable
+        });
+
+        i += 6; // skip to next block
       }
     }
 
-    res.json(timetableData);
+    res.json(classTimetables);
+    // const periodsHeader = lines[0].split(",").slice(2).map(p => p.replace(/"/g, ''));
+
+    // const className = lines[1].split(",")[0]?.replace("Class:", "").trim();
+    // const classTeacher = lines[2].split(",")[0]?.replace("Classteacher:", "").trim();
+
+    // let timetableData = [];
+
+    // const parseRow = (row, dayLabel) => {
+    //   const cells = row.split(",");
+    //   for (let j = 1; j < cells.length; j++) {
+    //     const cell = cells[j].trim().replace(/"/g, '');
+    //     if (cell !== "-" && cell !== "") {
+    //       const match = cell.match(/(.*?)\((.*?)\)/);
+    //       if (match) {
+    //         timetableData.push({
+    //           day: dayLabel,
+    //           period: periodsHeader[j - 1],
+    //           subject: match[1].trim(),
+    //           name: match[2].trim(),
+    //           class: className,
+    //           classTeacher: classTeacher
+    //         });
+    //       }
+    //     }
+    //   }
+    // };
+
+    // parseRow(lines[1], "Class Info");
+    // parseRow(lines[2], "Classteacher Info");
+
+    // // for (let i = 1; i < lines.length; i++) {
+    // //   const row = lines[i].split(",");
+    // //   const dayMatch = row[1]?.replace(/"/g, '').trim();
+
+    // //   const className = row[0]?.replace(/"/g, '').trim();
+    // //   const classTeacher = row[1]?.replace(/"/g, '').trim();
+
+    // //   for (let j = 2; j < row.length; j++) {
+    // //     const cell = row[j].trim().replace(/"/g, '');
+    // //     if (cell !== "-" && cell !== "") {
+    // //       const match = cell.match(/(.*?)\((.*?)\)/);
+    // //       if (match) {
+    // //         timetableData.push({
+    // //           day: dayMatch,
+    // //           period: periodsHeader[j - 2],
+    // //           subject: match[1].trim(),
+    // //           name: match[2].trim(),
+    // //           class: className,  
+    // //           classTeacher: classTeacher,
+    // //         });
+    // //       }
+    // //     }
+    // //   }
+    // // }
+    // for (let i = 3; i < lines.length; i++) {
+    //   const row = lines[i].split(",");
+    //   const day = row[0]?.replace(/"/g, '').trim();
+    //   for (let j = 1; j < row.length; j++) {
+    //     const cell = row[j].trim().replace(/"/g, '');
+    //     if (cell !== "-" && cell !== "") {
+    //       const match = cell.match(/(.*?)\((.*?)\)/);
+    //       if (match) {
+    //         timetableData.push({
+    //           day: day,
+    //           period: periodsHeader[j - 1],
+    //           subject: match[1].trim(),
+    //           name: match[2].trim(),
+    //           class: className,
+    //           classTeacher: classTeacher
+    //         });
+    //       }
+    //     }
+    //   }
+    // }
+
+    //res.json(timetableData);
   });
 });
 
-// POST to write new timetable to CSV
 router.post("/", (req, res) => {
+  console.log("Request body:", req.body); 
   const timetable = req.body;
   const classes = timetable[0].class;
   const ctname = timetable[0].ctname;
@@ -173,12 +275,46 @@ router.post("/", (req, res) => {
 
   csv += "\n";
 
-  fs.appendFile("Teachers.csv", csv, (err) => {
+  fs.appendFile(filePath, csv, (err) => {
     if (err) {
       console.error("Error writing to file:", err);
       return res.status(500).json({ error: "Error saving data" });
     }
     res.status(201).json({ message: "Data successfully added" });
+  });
+});
+router.delete('/:className', (req, res) => {
+  const className = req.params.className; // e.g., '9A'
+
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      return res.status(500).json({ message: 'Failed to read timetable file', error: err });
+    }
+
+    const lines = data.split('\n');
+    let startIndex = -1;
+
+    // Find the line with "Class: 9A"
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().includes(`Class: ${className}`)) {
+        startIndex = i - 1; // Include the period header above
+        break;
+      }
+    }
+
+    if (startIndex === -1) {
+      return res.status(404).json({ message: `Class ${className} not found` });
+    }
+
+    const deleteCount = 8; // Period header + Class line + 5 weekday lines + 1 empty line
+    const updatedLines = lines.filter((_, index) => index < startIndex || index >= startIndex + deleteCount);
+
+    fs.writeFile(filePath, updatedLines.join('\n'), (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to update timetable file', error: err });
+      }
+      res.json({ message: `Class ${className} and its header block deleted successfully.` });
+    });
   });
 });
 
