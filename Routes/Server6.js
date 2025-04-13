@@ -101,6 +101,15 @@ const path = require("path");
 const filePath = path.join(__dirname, "Teachers.csv");
 
 // GET timetable data from CSV
+router.get("/download", (req, res) => {
+  res.download(filePath, "Teachers.csv", (err) => {
+    if (err) {
+      console.error("Error downloading file:", err);
+      res.status(500).json({ error: "Error downloading the file" });
+    }
+  });
+});
+
 router.get("/", (req, res) => {
   fs.readFile(filePath, "utf8", (err, data) => {
     if (err) {
