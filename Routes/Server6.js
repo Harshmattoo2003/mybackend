@@ -326,5 +326,13 @@ router.delete('/:className', (req, res) => {
     });
   });
 });
+router.delete('/', (req, res) => {
+  fs.writeFile(filePath, '', (err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Failed to clear timetable file', error: err });
+    }
+    res.json({ message: 'All class timetable data has been cleared.' });
+  });
+});
 
 module.exports = router;
